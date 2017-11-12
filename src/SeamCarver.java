@@ -6,13 +6,7 @@ import java.sql.Timestamp;
 public class SeamCarver {
 
     private Color[][] picturePixels;
-    private EdgeWeightedDigraph energyDigraph;
-
-    private int topVert;
-    private int bottomVert;
-    private int leftVert;
-    private int rightVert;
-
+    private double[][] energyMatrix;
 
     private class SeamRequestStruct {
         EdgeWeightedDigraph digraph;
@@ -46,8 +40,13 @@ public class SeamCarver {
 
         StdOut.printf("Passed: ");
         for (int i = 0; i < 200; i++) {
-            int[] seam = carver.findVerticalSeam();
-            carver.removeVerticalSeam(seam);
+            if (i % 2 == 0) {
+                int[] seam = carver.findHorizontalSeam();
+                carver.removeHorizontalSeam(seam);
+            } else {
+                int[] seam = carver.findVerticalSeam();
+                carver.removeVerticalSeam(seam);
+            }
             StdOut.printf(" %d,", i);
         }
         StdOut.println("");
@@ -73,22 +72,19 @@ public class SeamCarver {
 
     // energy of pixel at column x and row y
     public double energy(int x, int y) {
-        return energy(picturePixels, x, y);
+        return energyMatrix[x][y];
     }
-//
-//    // sequence of indices for horizontal seam
-//    public   int[] findHorizontalSeam() {
-//
-//    }
-//
+
     // sequence of indices for vertical seam
     public int[] findVerticalSeam() {
+        EdgeWeightedDigraph verticalDigraph = digraph(energyMatrix);
         SeamRequestStruct requestData = new SeamRequestStruct();
-        requestData.startVert = topVert;
-        requestData.endVert = bottomVert;
+        requestData.startVert = startVertex(verticalDigraph);
+        requestData.endVert = endVertex(verticalDigraph);
         requestData.alongDimension = height();
         requestData.acrossDimension = width();
-        requestData.digraph = energyDigraph;
+        requestData.digraph = verticalDigraph;
+
         return findSeam(requestData);
     }
 
@@ -97,6 +93,7 @@ public class SeamCarver {
         if (seam.length != height()) {
             throw new IllegalArgumentException("Wrong seam length");
         }
+
         Color[][] newMatrix = new Color[width()-1][height()];
         for (int y = 0; y < height(); y++) {
             int newX = 0;
@@ -109,21 +106,44 @@ public class SeamCarver {
         setNewPixelMatrix(newMatrix);
     }
 
+
+    // sequence of indices for horizontal seam
+    public   int[] findHorizontalSeam() {
+        double[][] transposedEnergyMatrix = transposedMatrix(energyMatrix);
+        EdgeWeightedDigraph horizintalDigraph = digraph(transposedEnergyMatrix);
+        SeamRequestStruct requestData = new SeamRequestStruct();
+        requestData.startVert = startVertex(horizintalDigraph);
+        requestData.endVert = endVertex(horizintalDigraph);
+        requestData.alongDimension = width();
+        requestData.acrossDimension = height();
+        requestData.digraph = horizintalDigraph;
+
+        return findSeam(requestData);
+    }
+
     // remove horizontal seam from current picture
     public void removeHorizontalSeam(int[] seam) {
         if (seam.length != width()) {
             throw new IllegalArgumentException("Wrong seam length");
         }
 
+        Color[][] newMatrix = new Color[width()][height()-1];
+        for (int x = 0; x < width(); x++) {
+            int newY = 0;
+            for (int y = 0; y < height(); y++) {
+                if (y == seam[x]) { continue; }
+                newMatrix[x][newY] = picturePixels[x][y];
+                newY++;
+            }
+        }
+        setNewPixelMatrix(newMatrix);
     }
 
 
     // PRIVATE
     private void setNewPixelMatrix(Color[][] newMatrix) {
         picturePixels = newMatrix;
-        double[][] energyMatrix = energyMatrix(picturePixels);
-        this.energyDigraph = digraph(energyMatrix);
-        //StdOut.println(energyDigraph.toString());
+        energyMatrix = energyMatrix(picturePixels);
     }
 
     static private double energy(Color[][] pixelMatrix, int x, int y) {
@@ -176,19 +196,17 @@ public class SeamCarver {
         return matrix;
     }
 
-    private EdgeWeightedDigraph digraph(double[][] valueMatrix) {
+    static private EdgeWeightedDigraph digraph(double[][] valueMatrix) {
 
         int width = valueMatrix.length;
         int height = valueMatrix[0].length;
 
         float divider = 1000;
 
-        topVert = height * width;
-        bottomVert = topVert + 1;
-        leftVert = bottomVert + 1;
-        rightVert = leftVert + 1;
+        int topVert = height * width;
+        int bottomVert = topVert + 1;
 
-        EdgeWeightedDigraph digraph = new EdgeWeightedDigraph(rightVert + 1);
+        EdgeWeightedDigraph digraph = new EdgeWeightedDigraph(bottomVert + 1);
 
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
@@ -215,14 +233,6 @@ public class SeamCarver {
 
                 if (y == 0) {
                     DirectedEdge edge = new DirectedEdge(topVert, vert, divider);
-                    digraph.addEdge(edge);
-                }
-                if (x == width-1) {
-                    DirectedEdge edge = new DirectedEdge(vert, rightVert, divider);
-                    digraph.addEdge(edge);
-                }
-                if (x == 0) {
-                    DirectedEdge edge = new DirectedEdge(leftVert, vert, divider);
                     digraph.addEdge(edge);
                 }
                 if (y == height-1) {
@@ -277,6 +287,19 @@ public class SeamCarver {
         return picture;
     }
 
+    static double[][] transposedMatrix(double[][] originalMatrix) {
+        int width = originalMatrix.length;
+        int height = originalMatrix[0].length;
+        double[][] newMatrix = new double[height][width];
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                newMatrix[y][x] = originalMatrix[x][y];
+            }
+        }
+        return newMatrix;
+    }
+
+
     static private int index(int width, int x, int y) {
         return y * width + x;
     }
@@ -287,5 +310,14 @@ public class SeamCarver {
 
     static private int y(int width, int index) {
         return index / width;
+    }
+
+
+    static private int startVertex(EdgeWeightedDigraph digraph) {
+        return digraph.V()-2;
+    }
+
+    static private int endVertex(EdgeWeightedDigraph digraph) {
+        return digraph.V()-1;
     }
 }
