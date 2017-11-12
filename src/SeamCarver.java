@@ -5,7 +5,6 @@ import java.sql.Timestamp;
 
 public class SeamCarver {
 
-    private Picture picture;
     private Color[][] picturePixels;
     private EdgeWeightedDigraph energyDigraph;
 
@@ -26,12 +25,12 @@ public class SeamCarver {
 
     // create a seam carver object based on the given picture
     public SeamCarver(Picture picture) {
-        setNewPicture(picture);
+        setNewPixelMatrix(pixelMatrix(picture));
     }
 
     // current picture
     public Picture picture() {
-        return picture;
+        return picture(picturePixels);
     }
 
     public static void main(String[] args) {
@@ -61,17 +60,20 @@ public class SeamCarver {
 
     // width of current picture
     public int width() {
-        return picture.width();
+        return picturePixels.length;
     }
 
     // height of current picture
     public int height() {
-        return picture.height();
+        if (picturePixels.length <= 0) {
+            return 0;
+        }
+        return picturePixels[0].length;
     }
 
     // energy of pixel at column x and row y
     public double energy(int x, int y) {
-        return SeamCarver.energy(picture, x, y);
+        return energy(picturePixels, x, y);
     }
 //
 //    // sequence of indices for horizontal seam
@@ -84,59 +86,54 @@ public class SeamCarver {
         SeamRequestStruct requestData = new SeamRequestStruct();
         requestData.startVert = topVert;
         requestData.endVert = bottomVert;
-        requestData.alongDimension = picture.height();
-        requestData.acrossDimension = picture.width();
+        requestData.alongDimension = height();
+        requestData.acrossDimension = width();
         requestData.digraph = energyDigraph;
         return findSeam(requestData);
     }
 
     // remove vertical seam from current picture
     public void removeVerticalSeam(int[] seam) {
-        if (seam.length != picture.height()) {
+        if (seam.length != height()) {
             throw new IllegalArgumentException("Wrong seam length");
         }
-        Picture newPicture = new Picture(picture.width()-1, picture.height());
-        for (int y = 0; y < picture.height(); y++) {
+        Color[][] newMatrix = new Color[width()-1][height()];
+        for (int y = 0; y < height(); y++) {
             int newX = 0;
-            for (int x = 0; x < picture.width(); x++) {
+            for (int x = 0; x < width(); x++) {
                 if (x == seam[y]) { continue; }
-                Color pixelColor = picture.get(x,y);
-                newPicture.set(newX,y,pixelColor);
+                newMatrix[newX][y] = picturePixels[x][y];
                 newX++;
             }
         }
-        setNewPicture(newPicture);
+        setNewPixelMatrix(newMatrix);
     }
 
     // remove horizontal seam from current picture
     public void removeHorizontalSeam(int[] seam) {
-        if (seam.length != picture.width()) {
+        if (seam.length != width()) {
             throw new IllegalArgumentException("Wrong seam length");
         }
-        for (int x = 0; x < picture.width(); x++) {
-            for (int y = 0; y < picture.height(); y++) {
 
-            }
-        }
     }
 
 
     // PRIVATE
-    private void setNewPicture(Picture newPicture) {
-        this.picture = new Picture(newPicture);
-        double[][] energyMatrix = SeamCarver.energyMatrix(newPicture);
+    private void setNewPixelMatrix(Color[][] newMatrix) {
+        picturePixels = newMatrix;
+        double[][] energyMatrix = energyMatrix(picturePixels);
         this.energyDigraph = digraph(energyMatrix);
         //StdOut.println(energyDigraph.toString());
     }
 
-    static private double energy(Picture picture, int x, int y) {
-        if (x <= 0 || y <= 0 || x >= picture.width()-1 || y >= picture.height()-1) {
+    static private double energy(Color[][] pixelMatrix, int x, int y) {
+        if (x <= 0 || y <= 0 || x >= pixelMatrix.length-1 || y >= pixelMatrix[0].length-1) {
             throw new IllegalArgumentException("Pixel is out of range");
         }
-        Color colorXLeft = picture.get(x-1,y);
-        Color colorXRight = picture.get(x+1,y);
-        Color colorYUp = picture.get(x,y-1);
-        Color colorYBottom = picture.get(x,y+1);
+        Color colorXLeft    = pixelMatrix[x-1][y];
+        Color colorXRight   = pixelMatrix[x+1][y];
+        Color colorYUp      = pixelMatrix[x][y-1];
+        Color colorYBottom  = pixelMatrix[x][y+1];
 
         int RXLeft = colorXLeft.getRed();
         int GXLeft = colorXLeft.getGreen();
@@ -161,15 +158,17 @@ public class SeamCarver {
         return Math.sqrt(delta);
     }
 
-    static private double[][] energyMatrix(Picture picture) {
-        double[][] matrix = new double[picture.width()][picture.height()];
-        for (int x = 0; x < picture.width(); x++) {
-            for (int y = 0; y < picture.height(); y++) {
-                if (x == 0 || y == 0 || x == picture.width()-1 || y == picture.height()-1) {
+    static private double[][] energyMatrix(Color[][] pixelMatrix) {
+        int width = pixelMatrix.length;
+        int height = pixelMatrix[0].length;
+        double[][] matrix = new double[width][height];
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (x == 0 || y == 0 || x == width-1 || y == height-1) {
                     matrix[x][y] = 1000;
                     continue;
                 }
-                double energy = energy(picture, x, y);
+                double energy = energy(pixelMatrix, x, y);
                 matrix[x][y] = energy;
             }
         }
