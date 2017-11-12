@@ -1,7 +1,6 @@
 import edu.princeton.cs.algs4.*;
 
-import java.awt.*;
-import java.sql.Timestamp;
+import java.awt.Color;
 
 public class SeamCarver {
 
@@ -19,6 +18,9 @@ public class SeamCarver {
 
     // create a seam carver object based on the given picture
     public SeamCarver(Picture picture) {
+        if (picture == null) {
+            throw new IllegalArgumentException("Illegal argument");
+        }
         setNewPixelMatrix(pixelMatrix(picture));
     }
 
@@ -28,9 +30,6 @@ public class SeamCarver {
     }
 
     public static void main(String[] args) {
-
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        System.out.println(timestamp);
 
         //String picPath = "pics/1.png";
         String picPath = "pics/balloon-2331488_960_720.jpg";
@@ -52,9 +51,6 @@ public class SeamCarver {
         StdOut.println("");
 
         carver.picture().save("pics/output.png");
-
-        timestamp = new Timestamp(System.currentTimeMillis());
-        System.out.println(timestamp);
     }
 
     // width of current picture
@@ -72,6 +68,9 @@ public class SeamCarver {
 
     // energy of pixel at column x and row y
     public double energy(int x, int y) {
+        if (x < 0 || x >= width() || y < 0 || y >= height()) {
+            throw new IllegalArgumentException("Illegal argument");
+        }
         return energyMatrix[x][y];
     }
 
@@ -90,7 +89,7 @@ public class SeamCarver {
 
     // remove vertical seam from current picture
     public void removeVerticalSeam(int[] seam) {
-        if (seam.length != height()) {
+        if (seam == null || seam.length != height()) {
             throw new IllegalArgumentException("Wrong seam length");
         }
 
@@ -98,7 +97,11 @@ public class SeamCarver {
         for (int y = 0; y < height(); y++) {
             int newX = 0;
             for (int x = 0; x < width(); x++) {
-                if (x == seam[y]) { continue; }
+                int xFromSeam = seam[y];
+                if (xFromSeam < 0 || xFromSeam >= width()) {
+                    throw new IllegalArgumentException("Wrong seam");
+                }
+                if (x == xFromSeam) { continue; }
                 newMatrix[newX][y] = picturePixels[x][y];
                 newX++;
             }
@@ -108,7 +111,7 @@ public class SeamCarver {
 
 
     // sequence of indices for horizontal seam
-    public   int[] findHorizontalSeam() {
+    public int[] findHorizontalSeam() {
         double[][] transposedEnergyMatrix = transposedMatrix(energyMatrix);
         EdgeWeightedDigraph horizintalDigraph = digraph(transposedEnergyMatrix);
         SeamRequestStruct requestData = new SeamRequestStruct();
@@ -123,7 +126,7 @@ public class SeamCarver {
 
     // remove horizontal seam from current picture
     public void removeHorizontalSeam(int[] seam) {
-        if (seam.length != width()) {
+        if (seam == null || seam.length != width()) {
             throw new IllegalArgumentException("Wrong seam length");
         }
 
@@ -131,7 +134,11 @@ public class SeamCarver {
         for (int x = 0; x < width(); x++) {
             int newY = 0;
             for (int y = 0; y < height(); y++) {
-                if (y == seam[x]) { continue; }
+                int yFromSeam = seam[x];
+                if (yFromSeam < 0 || yFromSeam > height()) {
+                    throw new IllegalArgumentException("Wrong seam");
+                }
+                if (y == yFromSeam) { continue; }
                 newMatrix[x][newY] = picturePixels[x][y];
                 newY++;
             }
@@ -287,7 +294,7 @@ public class SeamCarver {
         return picture;
     }
 
-    static double[][] transposedMatrix(double[][] originalMatrix) {
+    static private double[][] transposedMatrix(double[][] originalMatrix) {
         int width = originalMatrix.length;
         int height = originalMatrix[0].length;
         double[][] newMatrix = new double[height][width];
